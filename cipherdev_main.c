@@ -24,12 +24,18 @@
 #include <linux/device.h>
 #include <asm/uaccess.h>
 #include "cipherdev.h"
+#include <linux/semaphore.h>
 
 static struct class *cipherdev_class = NULL;
 static struct device *cipherdev_device = NULL;
 static struct cdev cipherdev_cdev;
 static int cipherdev_major;
 static struct file_operations cipherdev_fops;
+
+struct cipher_device_t{
+	char data[100];
+	struct semaphore sem;
+} cipher_device
 
 /* Module initization. Happens every time the module is loaded. */
 /* At a minimum, you need to initialize the character device structures. */
@@ -52,14 +58,16 @@ static int __init cipherdev_init(void)
 	}
 
 	// Allocate a single minor for the device
-	err = alloc_chrdev_region(&dev, 0, 1, "cipherdev");
+	err = alloc_chrdev_region(&dev, 0, 1, DEVICE_NAME);
 	if (err) {
 		pr_err("error in alloc_chrdev_region(), cannot load module.\n");
 		goto err_alloc_chrdev_region;
 	}
 	// Extract the major number
 	cipherdev_major = MAJOR(dev);
-
+	pr_info("cipher Major number is %d",cipherdev_major);
+	pr_info("Use: mknod /dev/%s c %d 0",DEVICE_NAMEcipherdev_major);
+	
 	// Set up and add the cdev
 	cdev_init(&cipherdev_cdev, &cipherdev_fops);
 	cipherdev_cdev.owner = THIS_MODULE;
@@ -77,6 +85,8 @@ static int __init cipherdev_init(void)
 		err = PTR_ERR(cipherdev_device);
 		goto err_device_create;
 	}
+	//Init semaphore
+	sema_init(&virtual_device.sem,1);
 
 	// If no errors have occured, return 0.
 	return 0;
@@ -129,5 +139,5 @@ module_init(cipherdev_init);
 module_exit(cipherdev_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("William Katsak <wkatsak@cs.rutgers.edu>");
+MODULE_AUTHOR("Abhijit Shanbhag <abhijit.shanbhag@rutgers.edu>");
 MODULE_DESCRIPTION("CS519-Fall-2015 - cipherdev skeleton");
