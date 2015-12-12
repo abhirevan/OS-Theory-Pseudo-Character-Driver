@@ -1,0 +1,10 @@
+*.o 
+cipherctl
+*~ core 
+.depend 
+*.cmd 
+*.ko 
+*.mod.c 
+.tmp_versions 
+Module.* 
+modules.*
