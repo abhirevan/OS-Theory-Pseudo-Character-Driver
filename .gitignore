@@ -1,8 +1,7 @@
-*.o 
-cipherctl
+*.o
 *~ core 
 .depend 
-*.cmd 
+.*.cmd 
 *.ko 
 *.mod.c 
 .tmp_versions 
