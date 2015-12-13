@@ -72,7 +72,7 @@ void ioctl_get_mode(int file_desc)
 		exit(-1);
 	}
 	else{
-		printf("ioctl_get_method returned:%d\n", ret_val);
+		printf("ioctl_get_mode returned:%d\n", ret_val);
 	}
 }
 
@@ -93,7 +93,7 @@ void ioctl_get_key(int file_desc, char* key)
 
 	ret_val = ioctl(file_desc, IOCTL_GET_KEY, key);
 
-	if (ret_val <= 0) {
+	if (ret_val < 0) {
 		printf("ioctl_get_key failed:%d\n", ret_val);
 		exit(-1);
 	}

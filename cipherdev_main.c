@@ -37,15 +37,7 @@ struct cipher_device_t{
 /***************************************************************************
  * Helper functions
  ***************************************************************************/
- /*
- int string_len(const char* str){
-	int i=0;
-	while(!str[i]){
-		i++;
-	}
-	return i;
- }
- * */
+
 /***************************************************************************
  * Module functions
  ***************************************************************************/
@@ -94,6 +86,10 @@ static int __init cipherdev_init(void)
 		ret = PTR_ERR(cipherdev_device);
 		goto err_device_create;
 	}
+	//Init data and key
+	memset(cipher_device.data, '\0', BUF_LEN);
+	memset(cipher_device.cipher_key, '\0', BUF_LEN);
+	
 	//Init semaphore
 	sema_init(&cipher_device.sem,1);
 	
@@ -218,14 +214,14 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			return cipher_device.cipher_mode;
 			break;
 		case IOCTL_SET_KEY:
-			tempStr = (char *)ioctl_param;
-			ret= copy_to_user(tempStr,cipher_device.cipher_key,strlen(tempStr));
-			return ret;
+			pr_info("cipher ioctl: Set Key: %s of lenghth: %d",(char *)ioctl_param,strlen((char *)ioctl_param));
+			strcpy(cipher_device.cipher_key,(char *)ioctl_param);
+			return SUCCESS;
 			break;
 		case IOCTL_GET_KEY:
-			tempStr = (char *)ioctl_param;
-			ret =  copy_from_user(cipher_device.cipher_key,(char *)ioctl_param,strlen(cipher_device.cipher_key));
-			return ret;
+			strcpy(ioctl_param,cipher_device.cipher_key);
+			pr_info("cipher ioctl: Set Key: %s of lenghth: %d",(char *)ioctl_param,strlen((char *)ioctl_param));
+			return SUCCESS;
 			break;
 		case IOCTL_CLEAR_CIPHER:
 			break;
