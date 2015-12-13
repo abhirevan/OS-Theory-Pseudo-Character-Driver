@@ -31,6 +31,7 @@ static struct device *cipherdev_device = NULL;
 static struct cdev cipherdev_cdev;
 static int cipherdev_major;
 static struct file_operations cipherdev_fops;
+int ret;
 
 struct cipher_device_t{
 	char data[100];
@@ -41,7 +42,6 @@ struct cipher_device_t{
 /* At a minimum, you need to initialize the character device structures. */
 static int __init cipherdev_init(void)
 {
-	int err = 0;
 	dev_t dev = 0;
 
 	pr_info("module loaded\n");
@@ -53,13 +53,13 @@ static int __init cipherdev_init(void)
 	cipherdev_class = class_create(THIS_MODULE, "cipherdev");
 	if (IS_ERR(cipherdev_class)) {
 		pr_err("error in class_create(), cannot load module.\n");
-		err = PTR_ERR(cipherdev_class);
+		ret = PTR_ERR(cipherdev_class);
 		goto err_class_create;
 	}
 
 	// Allocate a single minor for the device
-	err = alloc_chrdev_region(&dev, 0, 1, DEVICE_NAME);
-	if (err) {
+	ret = alloc_chrdev_region(&dev, 0, 1, DEVICE_NAME);
+	if (ret) {
 		pr_err("error in alloc_chrdev_region(), cannot load module.\n");
 		goto err_alloc_chrdev_region;
 	}
@@ -71,8 +71,8 @@ static int __init cipherdev_init(void)
 	// Set up and add the cdev
 	cdev_init(&cipherdev_cdev, &cipherdev_fops);
 	cipherdev_cdev.owner = THIS_MODULE;
-	err = cdev_add(&cipherdev_cdev, MKDEV(cipherdev_major, 0), 1);
-	if (err) {
+	ret = cdev_add(&cipherdev_cdev, MKDEV(cipherdev_major, 0), 1);
+	if (ret) {
 		pr_err("error in cdev_add(), cannot load module.\n");
 		goto err_cdev_add;
 	}
@@ -82,7 +82,7 @@ static int __init cipherdev_init(void)
 	cipherdev_device = device_create(cipherdev_class, NULL, dev, NULL, "cipher");
 	if (IS_ERR(cipherdev_device)) {
 		pr_err("error in device_create(), cannot load module.\n");
-		err = PTR_ERR(cipherdev_device);
+		ret = PTR_ERR(cipherdev_device);
 		goto err_device_create;
 	}
 	//Init semaphore
@@ -130,9 +130,45 @@ static void __exit cipherdev_exit(void)
 		class_destroy(cipherdev_class);
 }
 
+static int cipherdev_open(struct inode *inode, struct file *filp){
+	pr_info("cipherdev_open(%p,%p)\n", inode, filp);
+	//allow only 1 process
+	if(down_interruptible(&cipher_device.sem) !=0){
+		pr_err("cipher: could not lock device during open\n");
+		return -1;
+	}
+	pr_info("cipher: opened device");
+	return 0;
+}
+
+static int cipherdev_release(struct inode *inode, struct file *filp)
+{
+	pr_info("cipherdev_release(%p,%p)\n", inode, filp);
+	//Release the process
+	up(&cipher_device.sem);
+	pr_info("cipher: released device");
+	return 0;
+}
+
+static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_t* offset){
+	pr_info("cipher: reading from device");
+	ret= copy_to_user(buffer,cipher_device.data,length);
+	return ret;
+}
+
+static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
+	pr_info("cipher: writing to device");
+	ret =  copy_from_user(cipher_device.data,buffer,length);
+	return ret;
+}
+
 /* File operations: put the pointers to your operation handlers here. */
 static struct file_operations cipherdev_fops = {
 	.owner = THIS_MODULE,
+	.open = cipherdev_open,
+	.release = cipherdev_release,
+	.write = cipherdev_write,
+	.read = cipherdev_read
 };
 
 module_init(cipherdev_init);
@@ -140,4 +176,4 @@ module_exit(cipherdev_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Abhijit Shanbhag <abhijit.shanbhag@rutgers.edu>");
-MODULE_DESCRIPTION("CS519-Fall-2015 - cipherdev skeleton");
+MODULE_DESCRIPTION("CS519-Fall-2015 - cipherdev");
