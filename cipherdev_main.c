@@ -12,7 +12,6 @@
 #include <asm/uaccess.h>
 #include "cipherdev.h"
 #include <linux/semaphore.h>
-#include <string.h>
 
 #define BUF_LEN 100
 #define SUCCESS 0
@@ -38,7 +37,15 @@ struct cipher_device_t{
 /***************************************************************************
  * Helper functions
  ***************************************************************************/
- 
+ /*
+ int string_len(const char* str){
+	int i=0;
+	while(!str[i]){
+		i++;
+	}
+	return i;
+ }
+ * */
 /***************************************************************************
  * Module functions
  ***************************************************************************/

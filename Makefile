@@ -5,13 +5,15 @@ cipherdev-objs := cipherdev_main.o
 KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 PWD       := $(shell pwd)
 
-default: build
+default: all
+
+all: build cipherctl test ioctl
 
 build:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 cipherctl: 
-	gcc -g -Wall cipherctl.c -o cipherctl.0
+	gcc -g -Wall cipherctl.c -o cipherctl.o
 
 test:
 	gcc -g -Wall test.c -o test.o

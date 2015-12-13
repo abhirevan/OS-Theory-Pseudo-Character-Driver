@@ -125,7 +125,7 @@ int main()
 	ioctl_get_mode(file_desc);
 	//Set and get key
 	printf("Enter key: ");
-	scanf("%s",&in);
+	scanf("%s",in);
 	ioctl_set_key(file_desc,in);
 	ioctl_get_key(file_desc,out);
 	
