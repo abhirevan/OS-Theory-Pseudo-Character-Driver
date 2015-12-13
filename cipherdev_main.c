@@ -35,7 +35,7 @@ static struct file_operations cipherdev_fops;
 struct cipher_device_t{
 	char data[100];
 	struct semaphore sem;
-} cipher_device
+} cipher_device;
 
 /* Module initization. Happens every time the module is loaded. */
 /* At a minimum, you need to initialize the character device structures. */
@@ -66,7 +66,7 @@ static int __init cipherdev_init(void)
 	// Extract the major number
 	cipherdev_major = MAJOR(dev);
 	pr_info("cipher Major number is %d",cipherdev_major);
-	pr_info("Use: mknod /dev/%s c %d 0",DEVICE_NAMEcipherdev_major);
+	pr_info("Use: mknod /dev/%s c %d 0",DEVICE_NAME,cipherdev_major);
 	
 	// Set up and add the cdev
 	cdev_init(&cipherdev_cdev, &cipherdev_fops);
@@ -86,7 +86,7 @@ static int __init cipherdev_init(void)
 		goto err_device_create;
 	}
 	//Init semaphore
-	sema_init(&virtual_device.sem,1);
+	sema_init(&cipher_device.sem,1);
 
 	// If no errors have occured, return 0.
 	return 0;
