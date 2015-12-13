@@ -26,6 +26,8 @@
 #include "cipherdev.h"
 #include <linux/semaphore.h>
 
+#define BUF_LEN 100
+
 static struct class *cipherdev_class = NULL;
 static struct device *cipherdev_device = NULL;
 static struct cdev cipherdev_cdev;
@@ -34,7 +36,8 @@ static struct file_operations cipherdev_fops;
 int ret;
 
 struct cipher_device_t{
-	char data[100];
+	char data[BUF_LEN];
+	char* ptr;
 	struct semaphore sem;
 } cipher_device;
 
@@ -87,7 +90,9 @@ static int __init cipherdev_init(void)
 	}
 	//Init semaphore
 	sema_init(&cipher_device.sem,1);
-
+	/*
+	cipher_device.ptr = cipher_device.data;
+	*/
 	// If no errors have occured, return 0.
 	return 0;
 
@@ -154,12 +159,33 @@ static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_
 	pr_info("cipher: reading from device");
 	ret= copy_to_user(buffer,cipher_device.data,length);
 	return ret;
+	
+	/*
+	int bytes_read = 0;
+	//If end return 0
+	if (*(cipher_device.ptr) == 0)
+		return 0;
+	while (length && *(cipher_device.ptr)) {
+		put_user(*(cipher_device.ptr++), buffer++);
+		length--;
+		bytes_read++;
+	}
+	pr_info("cipher: Read %d bytes, %d left\n",bytes_read, length);
+	return bytes_read;
+	* */
 }
 
 static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
 	pr_info("cipher: writing to device");
 	ret =  copy_from_user(cipher_device.data,buffer,length);
 	return ret;
+	/*
+	int i;
+	for (i = 0; i < length && i < BUF_LEN; i++)
+		get_user(cipher_device.data[i], buffer + i);
+	cipher_device.ptr = cipher_device.data;
+	return i;
+	*/
 }
 
 /* File operations: put the pointers to your operation handlers here. */
