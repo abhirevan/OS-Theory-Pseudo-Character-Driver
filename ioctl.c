@@ -17,11 +17,13 @@
 #include <unistd.h>		/* exit */
 #include <sys/ioctl.h>		/* ioctl */
 
+#define DEVICE "/dev/cipher"
+
 /* 
  * Functions for the ioctl calls 
  */
 
-ioctl_set_method(int file_desc, int method)
+void ioctl_set_method(int file_desc, int method)
 {
 	int ret_val;
 
@@ -33,7 +35,7 @@ ioctl_set_method(int file_desc, int method)
 	}
 }
 
-ioctl_get_method(int file_desc)
+void ioctl_get_method(int file_desc)
 {
 	int ret_val;
 
@@ -55,13 +57,14 @@ int main()
 {
 	int file_desc;
 
-	file_desc = open(DEVICE_FILE_NAME, O_RDWR);
-	if (file_desc < 0) {
-		printf("Can't open device file: %s\n", DEVICE_FILE_NAME);
+	file_desc = open(DEVICE, O_RDWR);
+	
+	if(file_desc == -1){
+		printf("file %s error opening",DEVICE);
 		exit(-1);
 	}
 
-	ioctl_get_method(file_desc);
+	//ioctl_get_method(file_desc);
 	ioctl_set_method(file_desc,VIGENERE);
 	ioctl_get_method(file_desc);
 

@@ -27,6 +27,8 @@
 #include <linux/semaphore.h>
 
 #define BUF_LEN 100
+#define SUCCESS 0
+#define ERROR -1
 
 static struct class *cipherdev_class = NULL;
 static struct device *cipherdev_device = NULL;
@@ -196,8 +198,8 @@ static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t leng
 	*/
 }
 
-int device_ioctl(struct inode *inode,struct file *file,unsigned int ioctl_num,unsigned long ioctl_param){
-	pr_info("cipher ioctl: Inode:%p File:%p IOCTL:%d IOCTL param: %d",inode,file,ioctl_num,ioctl_param);
+int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl_param){
+	pr_info("cipher ioctl: File:%p IOCTL:%d",file,ioctl_num);
 	switch (ioctl_num) {
 		case IOCTL_SET_METHOD:
 			cipher_device.cipher_method = ioctl_param;
@@ -220,8 +222,8 @@ static struct file_operations cipherdev_fops = {
 	.open = cipherdev_open,
 	.release = cipherdev_release,
 	.write = cipherdev_write,
-	.read = cipherdev_read,
-	.ioctl = cipherdev_ioctl
+	.unlocked_ioctl = cipherdev_ioctl,
+	.read = cipherdev_read
 };
 
 module_init(cipherdev_init);
