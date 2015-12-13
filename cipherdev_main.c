@@ -1,20 +1,7 @@
-/* cipherdev skeleton */
-/* cipherdev_main.c */
-/* by William Katsak <wkatsak@cs.rutgers.edu> */
-/* for CS 519, Fall 2015, Rutgers University */
-
-/* This is not guaranteed to be complete/correct with regards to setting up
-	the character device, just a reasonable starting point */
-
-/* *************************************************************************/
-
-/* This sets up some functions for printing output, and tagging the output */
-/* with the name of the module */
-/* These functions are pr_info(), pr_warn(), pr_err(), etc. and behave */
-/* just like printf(). You can search LXR for information on these functions */
-/* and other pr_ functions. */
+/***************************************************************************
+ * 
+ ***************************************************************************/
 #define pr_fmt(fmt) "["KBUILD_MODNAME "]: " fmt
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -25,27 +12,36 @@
 #include <asm/uaccess.h>
 #include "cipherdev.h"
 #include <linux/semaphore.h>
+#include <string.h>
 
 #define BUF_LEN 100
 #define SUCCESS 0
 #define ERROR -1
-
-static struct class *cipherdev_class = NULL;
+/***************************************************************************
+ * Globals
+ ***************************************************************************/
+ static struct class *cipherdev_class = NULL;
 static struct device *cipherdev_device = NULL;
 static struct cdev cipherdev_cdev;
 static int cipherdev_major;
 static struct file_operations cipherdev_fops;
 int ret;
+char *tempStr;
 
 struct cipher_device_t{
 	char data[BUF_LEN];
 	struct semaphore sem;
 	int cipher_method;
 	int cipher_mode;
+	char cipher_key[BUF_LEN];
 } cipher_device;
-
-/* Module initization. Happens every time the module is loaded. */
-/* At a minimum, you need to initialize the character device structures. */
+/***************************************************************************
+ * Helper functions
+ ***************************************************************************/
+ 
+/***************************************************************************
+ * Module functions
+ ***************************************************************************/
 static int __init cipherdev_init(void)
 {
 	dev_t dev = 0;
@@ -120,9 +116,6 @@ err_class_create:
 	return 0;
 }
 
-/* Module initization. Happens every time the module is loaded. */
-/* You need to clean up the character device structures as well as */
-/* ANYTHING else that you set up in init(). */
 static void __exit cipherdev_exit(void)
 {
 	dev_t dev = MKDEV(cipherdev_major, 0);
@@ -209,6 +202,30 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			pr_info("cipher ioctl: Method get as: %d",cipher_device.cipher_method);
 			return cipher_device.cipher_method;
 			break;
+		case IOCTL_SET_MODE:
+			cipher_device.cipher_mode = ioctl_param;
+			pr_info("cipher ioctl: Mode set as: %d",cipher_device.cipher_mode);
+			break;
+		case IOCTL_GET_MODE:
+			pr_info("cipher ioctl: Mode get as: %d",cipher_device.cipher_mode);
+			return cipher_device.cipher_mode;
+			break;
+		case IOCTL_SET_KEY:
+			tempStr = (char *)ioctl_param;
+			ret= copy_to_user(tempStr,cipher_device.cipher_key,strlen(tempStr));
+			return ret;
+			break;
+		case IOCTL_GET_KEY:
+			tempStr = (char *)ioctl_param;
+			ret =  copy_from_user(cipher_device.cipher_key,(char *)ioctl_param,strlen(cipher_device.cipher_key));
+			return ret;
+			break;
+		case IOCTL_CLEAR_CIPHER:
+			break;
+		case IOCTL_SET_MESG:
+			break;
+		case IOCTL_GET_MESG:
+			break;
 		default :
 			pr_err("cipher device: Incorrect IOCTL_NUMBER: %d",ioctl_num);
 	}
@@ -216,7 +233,6 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 	return SUCCESS;
 }
 
-/* File operations: put the pointers to your operation handlers here. */
 static struct file_operations cipherdev_fops = {
 	.owner = THIS_MODULE,
 	.open = cipherdev_open,
