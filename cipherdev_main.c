@@ -37,8 +37,9 @@ int ret;
 
 struct cipher_device_t{
 	char data[BUF_LEN];
-	char* ptr;
 	struct semaphore sem;
+	int cipher_method;
+	int cipher_mode;
 } cipher_device;
 
 /* Module initization. Happens every time the module is loaded. */
@@ -90,9 +91,11 @@ static int __init cipherdev_init(void)
 	}
 	//Init semaphore
 	sema_init(&cipher_device.sem,1);
-	/*
-	cipher_device.ptr = cipher_device.data;
-	*/
+	
+	//Init Cipher_device
+	cipher_device.cipher_method = DEFAULT;
+	cipher_device.cipher_mode = DEFAULT;
+	
 	// If no errors have occured, return 0.
 	return 0;
 
@@ -177,6 +180,11 @@ static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_
 
 static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
 	pr_info("cipher: writing to device");
+	if(length > BUF_LEN)
+	{
+		pr_err("cipher device: Cannot write more than %d bytes",BUF_LEN);
+		return -1;
+	}
 	ret =  copy_from_user(cipher_device.data,buffer,length);
 	return ret;
 	/*
@@ -188,13 +196,32 @@ static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t leng
 	*/
 }
 
+int device_ioctl(struct inode *inode,struct file *file,unsigned int ioctl_num,unsigned long ioctl_param){
+	pr_info("cipher ioctl: Inode:%p File:%p IOCTL:%d IOCTL param: %d",inode,file,ioctl_num,ioctl_param);
+	switch (ioctl_num) {
+		case IOCTL_SET_METHOD:
+			cipher_device.cipher_method = ioctl_param;
+			pr_info("cipher ioctl: Method set as: %d",cipher_device.cipher_method);
+			break;
+		case IOCTL_GET_METHOD:
+			pr_info("cipher ioctl: Method get as: %d",cipher_device.cipher_method);
+			return cipher_device.cipher_method;
+			break;
+		default :
+			pr_err("cipher device: Incorrect IOCTL_NUMBER: %d",ioctl_num);
+	}
+
+	return SUCCESS;
+}
+
 /* File operations: put the pointers to your operation handlers here. */
 static struct file_operations cipherdev_fops = {
 	.owner = THIS_MODULE,
 	.open = cipherdev_open,
 	.release = cipherdev_release,
 	.write = cipherdev_write,
-	.read = cipherdev_read
+	.read = cipherdev_read,
+	.ioctl = cipherdev_ioctl
 };
 
 module_init(cipherdev_init);
