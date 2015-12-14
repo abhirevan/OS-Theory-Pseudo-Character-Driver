@@ -41,12 +41,23 @@ struct cipher_device_t{
  ***************************************************************************/
 void convertToUpperCase(char *sPtr)
 {
-      while(*sPtr != '\0')
+     while(*sPtr != '\0')
+     {
+        *sPtr = toupper((unsigned char)*sPtr);
+        sPtr++;
+     }
+}
+int checkifAlpha(char *sPtr){
+	while(*sPtr != '\0')
       {
-         *sPtr = toupper((unsigned char)*sPtr);
+         if(!((*sPtr >= 'A') && (*sPtr <= 'Z'))){
+			 pr_err("String is not Alphabet");
+			 return ERROR;
+		 }
          sPtr++;
        }
 }
+
 /***************************************************************************
  * Module functions
  ***************************************************************************/
@@ -86,7 +97,6 @@ static int __init cipherdev_init(void)
 		pr_err("error in cdev_add(), cannot load module.\n");
 		goto err_cdev_add;
 	}
-
 	// Create a device structure
 	// This is what lets the system automatically create the /dev entry.
 	cipherdev_device = device_create(cipherdev_class, NULL, dev, NULL, "cipher");
@@ -169,20 +179,6 @@ static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_
 	pr_info("cipher: reading from device");
 	ret= copy_to_user(buffer,cipher_device.data,length);
 	return ret;
-	
-	/*
-	int bytes_read = 0;
-	//If end return 0
-	if (*(cipher_device.ptr) == 0)
-		return 0;
-	while (length && *(cipher_device.ptr)) {
-		put_user(*(cipher_device.ptr++), buffer++);
-		length--;
-		bytes_read++;
-	}
-	pr_info("cipher: Read %d bytes, %d left\n",bytes_read, length);
-	return bytes_read;
-	* */
 }
 
 static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
@@ -194,13 +190,6 @@ static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t leng
 	}
 	ret =  copy_from_user(cipher_device.data,buffer,length);
 	return ret;
-	/*
-	int i;
-	for (i = 0; i < length && i < BUF_LEN; i++)
-		get_user(cipher_device.data[i], buffer + i);
-	cipher_device.ptr = cipher_device.data;
-	return i;
-	*/
 }
 
 int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl_param){
@@ -226,6 +215,11 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			pr_info("cipher ioctl: Set Key: %s of lenghth: %d",(char *)ioctl_param,strlen((char *)ioctl_param));
 			tempStr=(char *)ioctl_param;
 			convertToUpperCase(tempStr);
+			ret = checkifAlpha(tempStr);
+			if(ret<0){
+				pr_info("cipher ioctl: Key: %s is not Alphabet",tempStr);
+				return ret;
+			}
 			strcpy(cipher_device.cipher_key,tempStr);
 			return SUCCESS;
 			break;
