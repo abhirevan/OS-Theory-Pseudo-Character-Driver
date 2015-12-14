@@ -265,6 +265,13 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			return SUCCESS;
 			break;
 		case IOCTL_CLEAR_CIPHER:
+			memset(temp,'\0',BUF_LEN);
+			ret = cipherdev_read(file,temp,BUF_LEN,0);
+			if(ret < 0)
+			{
+				pr_err("cipher ioctl: IOCTL_CLEAR_CIPHER failed");
+				return ERROR;
+			}
 			break;
 		case IOCTL_SET_MESG:
 			strcpy(temp,(char *)ioctl_param);
