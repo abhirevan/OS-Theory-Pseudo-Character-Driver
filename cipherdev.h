@@ -32,4 +32,8 @@
 #define IOCTL_GET_MESG _IOR(CIPHERDEV_MAGIC_NUMBER, 8, char*)
 
 
+#define BUF_LEN 100
+#define SUCCESS 0
+#define ERROR -1
+
 #endif

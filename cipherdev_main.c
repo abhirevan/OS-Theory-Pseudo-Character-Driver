@@ -15,9 +15,6 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 
-#define BUF_LEN 100
-#define SUCCESS 0
-#define ERROR -1
 /***************************************************************************
  * Globals
  ***************************************************************************/
@@ -58,6 +55,7 @@ int checkifAlpha(char *sPtr){
 		 }
          sPtr++;
        }
+       return SUCCESS;
 }
 
 int vinegere_cipher(char* text){
@@ -271,8 +269,12 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			return SUCCESS;
 			break;
 		case IOCTL_GET_KEY:
+			if(!(*cipher_device.key)){
+				pr_err("cipher ioctl: Get Key failed as no key set\n");
+				return ERROR;
+			}
 			strcpy(ioctl_param,cipher_device.key);
-			pr_info("cipher ioctl: Set Key: %s of lenghth: %d\n",(char *)ioctl_param,strlen((char *)ioctl_param));
+			pr_info("cipher ioctl: Get Key: %s of lenghth: %d\n",(char *)ioctl_param,strlen((char *)ioctl_param));
 			return SUCCESS;
 			break;
 		case IOCTL_CLEAR_CIPHER:

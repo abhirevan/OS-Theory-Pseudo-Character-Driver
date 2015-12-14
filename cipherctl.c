@@ -76,6 +76,27 @@ void ioctl_get_mode(int fp)
 			break;
 	}
 }
+void ioctl_set_key(int file_desc, const char* key)
+{
+	int ret_val;
+	ret_val = ioctl(file_desc, IOCTL_SET_KEY, key);
+	if (ret_val < 0) {
+		printf("Set Key failed\n");
+		exit(-1);
+	}
+	printf("Set Key success\n");
+}
+void ioctl_get_key(int file_desc)
+{
+	char key[BUF_LEN];
+	int ret_val;
+	ret_val = ioctl(file_desc, IOCTL_GET_KEY, key);
+	if (ret_val < 0) {
+		printf("Get Key failed\n");
+		exit(-1);
+	}
+	printf("Get Key: %s\n",key);
+}
 /***************************************************************************
  *  Main Controller
  ***************************************************************************/
@@ -131,9 +152,20 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
-	
+	// Set/Get Key
 	if (strcmp(argv[1], KEY) == 0) {
-
+		if (argc > 3) {
+			//TODO: Print usage
+			printf("Usage: %s key [key]\n", argv[0]);
+			exit(-1);
+		}
+		if (argc == 2) {
+			//print key
+			ioctl_get_key(fp);
+		}else{
+			//Set key
+			ioctl_set_key(fp,argv[2]);			
+		}
 	}
 
 	if (strcmp(argv[1], CLEAR) == 0) {
