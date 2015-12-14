@@ -13,7 +13,7 @@ build:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 cipherctl: 
-	gcc -g -Wall cipherctl.c -o cipherctl.o
+	gcc -g -Wall cipherctl.c -o cipherctl
 
 test:
 	gcc -g -Wall test.c -o test.o
@@ -22,4 +22,4 @@ ioctl:
 	gcc -g -Wall ioctl.c -o ioctl.o
 
 clean:
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.* modules.*
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.* modules.* cipherctl
