@@ -30,6 +30,7 @@ int ret;
 char *tempStr;
 int sign = 1;
 int i,j,length;
+char temp[100];
 
 struct cipher_device_t{
 	char message[BUF_LEN];
@@ -65,7 +66,7 @@ int vinegere_cipher(char* text){
 		pr_err("cipher device : Key is not set!");
 		return ERROR;
 	}
-	sign = (cipher_device.mode) ? 1 : -1;
+	sign = (cipher_device.mode) ? -1 : 1;
 	for(i = 0, j = 0, length = strlen(text); i < length; i++, j++)
     {
 		if (j >= strlen(cipher_device.key))
@@ -76,9 +77,11 @@ int vinegere_cipher(char* text){
         {
             j = (j - 1);
         } else{
-			text[i] = 'A' + (text[i] - 'A') + sign * (cipher_device.key[j] - 'A');
+			text[i] = 'A' + (26 + (text[i] - 'A') + sign * (cipher_device.key[j] - 'A'))%26;
 		}
 	}
+	
+	return 0;
 }
 
 /***************************************************************************
@@ -183,10 +186,10 @@ static int cipherdev_open(struct inode *inode, struct file *filp){
 	//allow only 1 process
 	if(down_interruptible(&cipher_device.sem) !=0){
 		pr_err("cipher: could not lock device during open\n");
-		return -1;
+		return ERROR;
 	}
 	pr_info("cipher: opened device");
-	return 0;
+	return SUCCESS;
 }
 
 static int cipherdev_release(struct inode *inode, struct file *filp)
@@ -195,7 +198,7 @@ static int cipherdev_release(struct inode *inode, struct file *filp)
 	//Release the process
 	up(&cipher_device.sem);
 	pr_info("cipher: released device");
-	return 0;
+	return SUCCESS;
 }
 
 static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_t* offset){
@@ -209,7 +212,7 @@ static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t leng
 	if(length > BUF_LEN)
 	{
 		pr_err("cipher device: Cannot write more than %d bytes",BUF_LEN);
-		return -1;
+		return ERROR;
 	}
 	ret =  copy_from_user(cipher_device.message,buffer,length);
 	return ret;
@@ -254,8 +257,34 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 		case IOCTL_CLEAR_CIPHER:
 			break;
 		case IOCTL_SET_MESG:
+			strcpy(temp,(char *)ioctl_param);
+			convertToUpperCase(temp);
+			ret = vinegere_cipher(temp);
+			if(ret < 0)
+			{
+				return ERROR;
+			}
+			ret = cipherdev_read(file,temp,strlen(temp),0);
+			if(ret < 0)
+			{
+				pr_err("cipher ioctl: IOCTL_SET_MESG failed");
+				return ERROR;
+			}
 			break;
 		case IOCTL_GET_MESG:
+			ret = cipherdev_write(file,temp,BUF_LEN,0);
+			if(ret < 0)
+			{
+				pr_err("cipher ioctl: IOCTL_GET_MESG failed");
+				return ERROR;
+			}
+			ret = vinegere_cipher(temp);
+			if(ret < 0)
+			{
+				return ERROR;
+			}
+			strcpy((char *)ioctl_param,temp);
+			return ret;
 			break;
 		default :
 			pr_err("cipher device: Incorrect IOCTL_NUMBER: %d",ioctl_num);

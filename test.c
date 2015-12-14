@@ -1,13 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <string.h>
 
 int sign;
 int i,j,length;
 int vinegere_cipher(char* text,char* key,int mode){
-	sign = (mode) ? 1 : -1;
+	sign = (mode) ? -1 : 1;
 	for(i = 0, j = 0, length = strlen(text); i < length; i++, j++)
     {
 		if (j >= strlen(key))
@@ -18,7 +16,7 @@ int vinegere_cipher(char* text,char* key,int mode){
         {
             j = (j - 1);
         } else{
-			text[i] = 'A' + (text[i] - 'A') + sign * (key[j] - 'A');
+			text[i] = 'A' + (26 + (text[i] - 'A') + sign * (key[j] - 'A'))%26;
 		}
 	}
 	
@@ -27,16 +25,20 @@ int vinegere_cipher(char* text,char* key,int mode){
 
 int main(){
 	
-	int fd;
+	int mode;
 	char text[100],key[100];
+	printf("%d",-1%26);
+	
+	printf("Mode?: ");
+	scanf("%d",&mode);
 	
 	printf("Key?: ");
-	scanf("%s",key);
-	
+	scanf("%s",&key);
+		
 	printf("Text?: ");
-	scanf("%s",text);
+	scanf("%s",&text);
 	
-	vinegere_cipher(text,key,0);
+	vinegere_cipher(text,key,mode);
 	
 	printf("Cipher text= %s\n",text);
 	
