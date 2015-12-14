@@ -44,6 +44,7 @@ void convertToUpperCase(char *sPtr)
       while(*sPtr != '\0')
       {
          *sPtr = toupper((unsigned char)*sPtr);
+         sPtr++;
        }
 }
 /***************************************************************************
