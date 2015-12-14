@@ -103,7 +103,7 @@ void ioctl_write_msg(int fp, const char* mesg,int mode){ // Mode = 0 -> device r
 	int ret_val;
 	switch(mode){
 		case 0:
-			ret_val = write(fp, mesg, sizeof(mesg));
+			ret_val = write(fp, mesg, strlen(mesg));
 			break;
 		case 1:
 			ret_val = ioctl(fp, IOCTL_SET_MESG, mesg);
@@ -122,7 +122,7 @@ void ioctl_read_msg(int fp,int mode){ // Mode = 0 -> device read/write 1->IOCTL 
 	
 	switch(mode){
 		case 0:
-			ret_val = read(fp, mesg, sizeof(mesg));
+			ret_val = read(fp, mesg, BUF_LEN);
 			break;
 		case 1:
 			ret_val = ioctl(fp, IOCTL_GET_MESG, mesg);
