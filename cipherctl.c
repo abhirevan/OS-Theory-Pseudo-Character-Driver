@@ -17,6 +17,8 @@
 #define CLEAR "clear"
 #define WRITE "write"
 #define READ "read"
+#define WRITE_MSG "write_msg"
+#define READ_MSG "read_msg"
 /***************************************************************************
  *  Helper function
  ***************************************************************************/
@@ -76,26 +78,61 @@ void ioctl_get_mode(int fp)
 			break;
 	}
 }
-void ioctl_set_key(int file_desc, const char* key)
+void ioctl_set_key(int fp, const char* key)
 {
 	int ret_val;
-	ret_val = ioctl(file_desc, IOCTL_SET_KEY, key);
+	ret_val = ioctl(fp, IOCTL_SET_KEY, key);
 	if (ret_val < 0) {
 		printf("Set Key failed\n");
 		exit(-1);
 	}
 	printf("Set Key success\n");
 }
-void ioctl_get_key(int file_desc)
+void ioctl_get_key(int fp)
 {
 	char key[BUF_LEN];
 	int ret_val;
-	ret_val = ioctl(file_desc, IOCTL_GET_KEY, key);
+	ret_val = ioctl(fp, IOCTL_GET_KEY, key);
 	if (ret_val < 0) {
 		printf("Get Key failed\n");
 		exit(-1);
 	}
 	printf("Get Key: %s\n",key);
+}
+void ioctl_write_msg(int fp, const char* mesg,int mode){ // Mode = 0 -> device read/write 1->IOCTL read/write
+	int ret_val;
+	switch(mode){
+		case 0:
+			ret_val = write(fp, mesg, sizeof(mesg));
+			break;
+		case 1:
+			ret_val = ioctl(fp, IOCTL_SET_MESG, mesg);
+			break;
+	}
+	if (ret_val < 0) {
+		printf("Write failed\n");
+		exit(-1);
+	}
+	printf("Write successfull\n");
+}
+
+void ioctl_read_msg(int fp,int mode){ // Mode = 0 -> device read/write 1->IOCTL read/write
+	int ret_val;
+	char mesg[BUF_LEN];
+	
+	switch(mode){
+		case 0:
+			ret_val = read(fp, mesg, sizeof(mesg));
+			break;
+		case 1:
+			ret_val = ioctl(fp, IOCTL_GET_MESG, mesg);
+			break;
+	}
+	if (ret_val < 0) {
+		printf("Read failed\n");
+		exit(-1);
+	}
+	printf("Message: %s\n",mesg);
 }
 /***************************************************************************
  *  Main Controller
@@ -172,10 +209,41 @@ int main(int argc, char **argv) {
 
 	}
 	if (strcmp(argv[1], WRITE) == 0) {
-
+		if (argc != 3) {
+			//TODO: Print usage
+			printf("Usage: %s write [message]\n", argv[0]);
+			exit(-1);
+		}else{
+			ioctl_write_msg(fp,argv[2],1);
+		}
+	}
+	if (strcmp(argv[1], WRITE_MSG) == 0) {
+		if (argc != 3) {
+			//TODO: Print usage
+			printf("Usage: %s write_msg [message]\n", argv[0]);
+			exit(-1);
+		}else{
+			ioctl_write_msg(fp,argv[2],0);
+		}
 	}
 	if (strcmp(argv[1], READ) == 0) {
+		if (argc != 2) {
+			//TODO: Print usage
+			printf("Usage: %s read\n", argv[0]);
+			exit(-1);
+		}else{
+			ioctl_read_msg(fp,1);
+		}
 
+	}
+	if (strcmp(argv[1], READ_MSG) == 0) {
+		if (argc != 2) {
+			//TODO: Print usage
+			printf("Usage: %s read_msg\n", argv[0]);
+			exit(-1);
+		}else{
+			ioctl_read_msg(fp,0);
+		}
 	}
 
 	return 0;
