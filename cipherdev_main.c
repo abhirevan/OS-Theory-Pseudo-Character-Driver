@@ -13,7 +13,7 @@
 #include "cipherdev.h"
 #include <linux/semaphore.h>
 #include <linux/ctype.h>
-//#include <linux/string.h>
+#include <linux/string.h>
 
 #define BUF_LEN 100
 #define SUCCESS 0
@@ -28,13 +28,15 @@ static int cipherdev_major;
 static struct file_operations cipherdev_fops;
 int ret;
 char *tempStr;
+int sign = 1;
+int i,j,length;
 
 struct cipher_device_t{
-	char data[BUF_LEN];
+	char message[BUF_LEN];
 	struct semaphore sem;
-	int cipher_method;
-	int cipher_mode;
-	char cipher_key[BUF_LEN];
+	int method;
+	int mode;
+	char key[BUF_LEN];
 } cipher_device;
 /***************************************************************************
  * Helper functions
@@ -51,11 +53,32 @@ int checkifAlpha(char *sPtr){
 	while(*sPtr != '\0')
       {
          if(!((*sPtr >= 'A') && (*sPtr <= 'Z'))){
-			 pr_err("String is not Alphabet");
+			 pr_err("cipher device : String is not Alphabet");
 			 return ERROR;
 		 }
          sPtr++;
        }
+}
+
+int vinegere_cipher(char* text){
+	if(!(*(cipher_device.key))){//Key is not present
+		pr_err("cipher device : Key is not set!");
+		return ERROR;
+	}
+	sign = (cipher_device.mode) ? 1 : -1;
+	for(i = 0, j = 0, length = strlen(text); i < length; i++, j++)
+    {
+		if (j >= strlen(cipher_device.key))
+        {
+            j = 0;
+        }
+        if (!isalpha(text[i]))
+        {
+            j = (j - 1);
+        } else{
+			text[i] = 'A' + (text[i] - 'A') + sign * (cipher_device.key[j] - 'A');
+		}
+	}
 }
 
 /***************************************************************************
@@ -105,16 +128,16 @@ static int __init cipherdev_init(void)
 		ret = PTR_ERR(cipherdev_device);
 		goto err_device_create;
 	}
-	//Init data and key
-	memset(cipher_device.data, '\0', BUF_LEN);
-	memset(cipher_device.cipher_key, '\0', BUF_LEN);
+	//Init message and key
+	memset(cipher_device.message, '\0', BUF_LEN);
+	memset(cipher_device.key, '\0', BUF_LEN);
 	
 	//Init semaphore
 	sema_init(&cipher_device.sem,1);
 	
 	//Init Cipher_device
-	cipher_device.cipher_method = DEFAULT;
-	cipher_device.cipher_mode = DEFAULT;
+	cipher_device.method = VIGENERE;
+	cipher_device.mode = ENCIPHER;
 	
 	// If no errors have occured, return 0.
 	return 0;
@@ -177,7 +200,7 @@ static int cipherdev_release(struct inode *inode, struct file *filp)
 
 static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_t* offset){
 	pr_info("cipher: reading from device");
-	ret= copy_to_user(buffer,cipher_device.data,length);
+	ret= copy_to_user(buffer,cipher_device.message,length);
 	return ret;
 }
 
@@ -188,7 +211,7 @@ static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t leng
 		pr_err("cipher device: Cannot write more than %d bytes",BUF_LEN);
 		return -1;
 	}
-	ret =  copy_from_user(cipher_device.data,buffer,length);
+	ret =  copy_from_user(cipher_device.message,buffer,length);
 	return ret;
 }
 
@@ -196,20 +219,20 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 	pr_info("cipher ioctl: File:%p IOCTL:%d",file,ioctl_num);
 	switch (ioctl_num) {
 		case IOCTL_SET_METHOD:
-			cipher_device.cipher_method = ioctl_param;
-			pr_info("cipher ioctl: Method set as: %d",cipher_device.cipher_method);
+			cipher_device.method = ioctl_param;
+			pr_info("cipher ioctl: Method set as: %d",cipher_device.method);
 			break;
 		case IOCTL_GET_METHOD:
-			pr_info("cipher ioctl: Method get as: %d",cipher_device.cipher_method);
-			return cipher_device.cipher_method;
+			pr_info("cipher ioctl: Method get as: %d",cipher_device.method);
+			return cipher_device.method;
 			break;
 		case IOCTL_SET_MODE:
-			cipher_device.cipher_mode = ioctl_param;
-			pr_info("cipher ioctl: Mode set as: %d",cipher_device.cipher_mode);
+			cipher_device.mode = ioctl_param;
+			pr_info("cipher ioctl: Mode set as: %d",cipher_device.mode);
 			break;
 		case IOCTL_GET_MODE:
-			pr_info("cipher ioctl: Mode get as: %d",cipher_device.cipher_mode);
-			return cipher_device.cipher_mode;
+			pr_info("cipher ioctl: Mode get as: %d",cipher_device.mode);
+			return cipher_device.mode;
 			break;
 		case IOCTL_SET_KEY:
 			pr_info("cipher ioctl: Set Key: %s of lenghth: %d",(char *)ioctl_param,strlen((char *)ioctl_param));
@@ -220,11 +243,11 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 				pr_info("cipher ioctl: Key: %s is not Alphabet",tempStr);
 				return ret;
 			}
-			strcpy(cipher_device.cipher_key,tempStr);
+			strcpy(cipher_device.key,tempStr);
 			return SUCCESS;
 			break;
 		case IOCTL_GET_KEY:
-			strcpy(ioctl_param,cipher_device.cipher_key);
+			strcpy(ioctl_param,cipher_device.key);
 			pr_info("cipher ioctl: Set Key: %s of lenghth: %d",(char *)ioctl_param,strlen((char *)ioctl_param));
 			return SUCCESS;
 			break;
