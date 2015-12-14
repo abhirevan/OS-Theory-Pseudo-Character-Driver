@@ -80,10 +80,20 @@ int vinegere_cipher(char* text){
 			text[i] = 'A' + (26 + (text[i] - 'A') + sign * (cipher_device.key[j] - 'A'))%26;
 		}
 	}
-	
-	return 0;
+	return SUCCESS;
 }
 
+int caesar_cipher(char* text){
+	sign = (cipher_device.mode) ? 1 : -1;
+	for(i = 0, length = strlen(text); i < length; i++)
+    {
+        if (isalpha(text[i]))
+        {
+			text[i] = 'A' + (26 + (text[i] - 'A') + sign * 3)%26;
+		}
+	}
+	return SUCCESS;
+}
 /***************************************************************************
  * Module functions
  ***************************************************************************/
@@ -259,7 +269,7 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 		case IOCTL_SET_MESG:
 			strcpy(temp,(char *)ioctl_param);
 			convertToUpperCase(temp);
-			ret = vinegere_cipher(temp);
+			ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
 			if(ret < 0)
 			{
 				return ERROR;
@@ -278,7 +288,7 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 				pr_err("cipher ioctl: IOCTL_GET_MESG failed");
 				return ERROR;
 			}
-			ret = vinegere_cipher(temp);
+			ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
 			if(ret < 0)
 			{
 				return ERROR;

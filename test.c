@@ -23,23 +23,36 @@ int vinegere_cipher(char* text,char* key,int mode){
 	return 0;
 }
 
+int caesar_cipher(char* text,int mode){
+	sign = (mode) ? 1 : -1;
+	for(i = 0, length = strlen(text); i < length; i++)
+    {
+        if (isalpha(text[i]))
+        {
+			text[i] = 'A' + (26 + (text[i] - 'A') + sign * 3)%26;
+		}
+	}
+}
+
+
 int main(){
 	
 	int mode;
 	char text[100],key[100];
-	printf("%d",-1%26);
 	
 	printf("Mode?: ");
 	scanf("%d",&mode);
 	
-	printf("Key?: ");
-	scanf("%s",&key);
+	//printf("Key?: ");
+	//scanf("%s",&key);
 		
 	printf("Text?: ");
 	scanf("%s",&text);
 	
-	vinegere_cipher(text,key,mode);
+	//vinegere_cipher(text,key,mode);
 	
+	caesar_cipher(text,mode);
+
 	printf("Cipher text= %s\n",text);
 	
 	return 0;
