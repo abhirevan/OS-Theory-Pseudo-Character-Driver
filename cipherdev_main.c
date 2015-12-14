@@ -12,6 +12,8 @@
 #include <asm/uaccess.h>
 #include "cipherdev.h"
 #include <linux/semaphore.h>
+#include <linux/ctype.h>
+//#include <linux/string.h>
 
 #define BUF_LEN 100
 #define SUCCESS 0
@@ -37,7 +39,13 @@ struct cipher_device_t{
 /***************************************************************************
  * Helper functions
  ***************************************************************************/
-
+void convertToUpperCase(char *sPtr)
+{
+      while(*sPtr != '\0')
+      {
+         *sPtr = toupper((unsigned char)*sPtr);
+       }
+}
 /***************************************************************************
  * Module functions
  ***************************************************************************/
@@ -215,7 +223,9 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			break;
 		case IOCTL_SET_KEY:
 			pr_info("cipher ioctl: Set Key: %s of lenghth: %d",(char *)ioctl_param,strlen((char *)ioctl_param));
-			strcpy(cipher_device.cipher_key,(char *)ioctl_param);
+			tempStr=(char *)ioctl_param;
+			convertToUpperCase(tempStr);
+			strcpy(cipher_device.cipher_key,tempStr);
 			return SUCCESS;
 			break;
 		case IOCTL_GET_KEY:
