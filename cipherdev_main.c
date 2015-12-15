@@ -269,7 +269,8 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 				pr_info("cipher ioctl: Key: %s is not Alphabet\n",tempStr);
 				return ret;
 			}
-			strcpy(cipher_device.key,tempStr);
+			ret =  copy_from_user(cipher_device.key,tempStr,strlen(tempStr));
+			//strcpy(cipher_device.key,tempStr);
 			return SUCCESS;
 			break;
 		case IOCTL_GET_KEY:
@@ -278,6 +279,7 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 				return ERROR;
 			}
 			strcpy(ioctl_param,cipher_device.key);
+			//ret =  copy_from_user(ioctl_param,cipher_device.key,BUF_LEN);
 			pr_info("cipher ioctl: Get Key: %s of lenghth: %d\n",(char *)ioctl_param,strlen((char *)ioctl_param));
 			return SUCCESS;
 			break;
@@ -291,7 +293,8 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			}
 			break;
 		case IOCTL_SET_MESG:
-			strcpy(temp,(char *)ioctl_param);
+			//strcpy(temp,(char *)ioctl_param);
+			ret =  copy_from_user(temp,(char *)ioctl_param,strlen((char *)ioctl_param));
 			//pr_info("cipher device: Write %s msg",temp);
 			convertToUpperCase(temp);
 			//pr_info("cipher device: Write %s msg",temp);
@@ -301,7 +304,7 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			{
 				return ERROR;
 			}
-			ret = write(file,temp,strlen(temp));
+			ret = cipherdev_write(file,temp,strlen(temp),0);
 			if(ret < 0)
 			{
 				pr_err("cipher ioctl: IOCTL_SET_MESG failed\n");

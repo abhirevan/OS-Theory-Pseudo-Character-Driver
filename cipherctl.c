@@ -134,6 +134,14 @@ void ioctl_read_msg(int fp,int mode){ // Mode = 0 -> device read/write 1->IOCTL 
 	}
 	printf("Message: %s\n",mesg);
 }
+void ioctl_clear_msg(int fp){
+	int ret_val = ioctl(fp, IOCTL_CLEAR_CIPHER, 0);
+	if (ret_val < 0) {
+		printf("Clear failed\n");
+		exit(-1);
+	}
+	printf("Clear successfull\n");
+}
 /***************************************************************************
  *  Main Controller
  ***************************************************************************/
@@ -168,7 +176,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	//Set/Get Mode
-	if (strcmp(argv[1], MODE) == 0) {
+	else if (strcmp(argv[1], MODE) == 0) {
 		if (argc > 3) {
 			//TODO: Print usage
 			printf("Usage: %s mode [encipher | decipher]\n", argv[0]);
@@ -190,7 +198,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	// Set/Get Key
-	if (strcmp(argv[1], KEY) == 0) {
+	else if (strcmp(argv[1], KEY) == 0) {
 		if (argc > 3) {
 			//TODO: Print usage
 			printf("Usage: %s key [key]\n", argv[0]);
@@ -204,11 +212,18 @@ int main(int argc, char **argv) {
 			ioctl_set_key(fp,argv[2]);			
 		}
 	}
-
-	if (strcmp(argv[1], CLEAR) == 0) {
-
+	//Clear msg
+	else if (strcmp(argv[1], CLEAR) == 0) {
+		if (argc != 2) {
+			//TODO: Print usage
+			printf("Usage: clear\n", argv[0]);
+			exit(-1);
+		}else{
+			ioctl_clear_msg(fp);
+		}
 	}
-	if (strcmp(argv[1], WRITE) == 0) {
+	//Write msg
+	else if (strcmp(argv[1], WRITE) == 0) {
 		if (argc != 3) {
 			//TODO: Print usage
 			printf("Usage: %s write [message]\n", argv[0]);
@@ -217,7 +232,7 @@ int main(int argc, char **argv) {
 			ioctl_write_msg(fp,argv[2],1);
 		}
 	}
-	if (strcmp(argv[1], WRITE_MSG) == 0) {
+	else if (strcmp(argv[1], WRITE_MSG) == 0) {
 		if (argc != 3) {
 			//TODO: Print usage
 			printf("Usage: %s write_msg [message]\n", argv[0]);
@@ -226,7 +241,8 @@ int main(int argc, char **argv) {
 			ioctl_write_msg(fp,argv[2],0);
 		}
 	}
-	if (strcmp(argv[1], READ) == 0) {
+	//Read msg
+	else if (strcmp(argv[1], READ) == 0) {
 		if (argc != 2) {
 			//TODO: Print usage
 			printf("Usage: %s read\n", argv[0]);
@@ -236,7 +252,7 @@ int main(int argc, char **argv) {
 		}
 
 	}
-	if (strcmp(argv[1], READ_MSG) == 0) {
+	else if (strcmp(argv[1], READ_MSG) == 0) {
 		if (argc != 2) {
 			//TODO: Print usage
 			printf("Usage: %s read_msg\n", argv[0]);
@@ -244,6 +260,9 @@ int main(int argc, char **argv) {
 		}else{
 			ioctl_read_msg(fp,0);
 		}
+	}else{
+		printf("Invalid usage for %s\n", argv[0]);
+		exit(-1);
 	}
 
 	return 0;
