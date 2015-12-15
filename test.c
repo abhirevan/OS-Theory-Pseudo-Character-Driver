@@ -1,3 +1,9 @@
+/*
+ * Simple test program for testing Vinegere and Caesar cipher in user space
+ *
+ * Author:  Abhijit Shanbhag<abhijit.shanbhag@rutgers.edu>
+ * 		    Priyanka Dhingra<pd374@scarletmail.rutgers.edu>
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,6 +1,12 @@
-/***************************************************************************
+/*
+ * Pseudo-Character Driver implementation file for Cipher Processing
  * 
- ***************************************************************************/
+ * Supports callbacks for the following system calls: open(),release(),read(),write(),ioctl()
+ * Supports a Vigenre, as well as a simple Caesar cipher.
+ *
+ * Author:  Abhijit Shanbhag<abhijit.shanbhag@rutgers.edu>
+ * 		    Priyanka Dhingra<pd374@scarletmail.rutgers.edu>
+ */
 #define pr_fmt(fmt) "["KBUILD_MODNAME "]: " fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -329,4 +335,4 @@ module_exit(cipherdev_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Abhijit Shanbhag <abhijit.shanbhag@rutgers.edu>");
-MODULE_DESCRIPTION("CS519-Fall-2015 - cipherdev");
+MODULE_DESCRIPTION("Pseudo-Character Driver for Cipher Processing");

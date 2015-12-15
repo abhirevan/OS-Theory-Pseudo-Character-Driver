@@ -1,3 +1,18 @@
+/*
+ * Pseudo-Character Driver command line utility
+ * 
+ * This that uses the pseudo-character driver for Cipher Processing to provide enci-phering/deciphering services.
+ * Supports following interfaces:
+ * cipherctl method [vigenere | caesar] - Set cipher method.
+ * cipherctl key [key] - Set key.
+ * cipherctl mode [encipher | decipher] - Set operation mode.
+ * cipherctl clear - Drop any message pending in the driver.
+ * cipherctl write [message] - Encipher/decipher a message.
+ * cipherctl read - Read the result of an encipher/decipher operation.
+ *
+ * Author:  Abhijit Shanbhag<abhijit.shanbhag@rutgers.edu>
+ * 		    Priyanka Dhingra<pd374@scarletmail.rutgers.edu>
+ */
 #include "cipherdev.h"
 #include <stdio.h>
 #include <stdlib.h>

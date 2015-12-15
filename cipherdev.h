@@ -1,7 +1,9 @@
-/* cipherdev header */
-/* cipherdev.h */
-/* by William Katsak <wkatsak@cs.rutgers.edu> */
-/* for CS 519, Spring 2015, Rutgers University */
+/*
+ * Pseudo-Character Driver header file for Cipher Processing
+ *
+ * Author:  Abhijit Shanbhag<abhijit.shanbhag@rutgers.edu>
+ * 		    Priyanka Dhingra<pd374@scarletmail.rutgers.edu>
+ */
 #ifndef CIPHERDEV_H
 #define CIPHERDEV_H
 #include <linux/ioctl.h>
