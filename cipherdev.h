@@ -27,10 +27,6 @@
 #define IOCTL_GET_KEY _IOR(CIPHERDEV_MAGIC_NUMBER, 5, char*)
 // Clear cipher
 #define IOCTL_CLEAR_CIPHER _IOWR(CIPHERDEV_MAGIC_NUMBER, 6, int)
-// Read/Write Message
-#define IOCTL_SET_MESG _IOW(CIPHERDEV_MAGIC_NUMBER, 7, char*)
-#define IOCTL_GET_MESG _IOR(CIPHERDEV_MAGIC_NUMBER, 8, char*)
-
 
 #define BUF_LEN 100
 #define SUCCESS 0

@@ -106,7 +106,7 @@ void ioctl_write_msg(int fp, const char* mesg,int mode){ // Mode = 0 -> device r
 			ret_val = write(fp, mesg, strlen(mesg));
 			break;
 		case 1:
-			ret_val = ioctl(fp, IOCTL_SET_MESG, mesg);
+			//ret_val = ioctl(fp, IOCTL_SET_MESG, mesg);
 			break;
 	}
 	if (ret_val < 0) {
@@ -125,7 +125,7 @@ void ioctl_read_msg(int fp,int mode){ // Mode = 0 -> device read/write 1->IOCTL 
 			ret_val = read(fp, mesg, BUF_LEN);
 			break;
 		case 1:
-			ret_val = ioctl(fp, IOCTL_GET_MESG, mesg);
+			//ret_val = ioctl(fp, IOCTL_GET_MESG, mesg);
 			break;
 	}
 	if (ret_val < 0) {

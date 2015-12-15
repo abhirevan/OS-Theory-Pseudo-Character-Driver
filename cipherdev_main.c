@@ -218,20 +218,12 @@ static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_
 
 static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
 	pr_info("cipher: writing to device\n");
-	/*
-	if(length > BUF_LEN)
-	{
-		pr_err("cipher device: Cannot write more than %d bytes\n",BUF_LEN);
-		return ERROR;
-	}
-	*/
 	ret =  copy_from_user(cipher_device.message,buffer,length);
 	return ret;
 }
 
 int check_if_mesg_exists(struct file *file){
-	cipherdev_write(file,temp,BUF_LEN,0);
-	if(*temp){
+	if(*(cipher_device.message)){
 		return 1;
 	}
 	return 0;
@@ -239,10 +231,7 @@ int check_if_mesg_exists(struct file *file){
 
 int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl_param){
 	pr_info("cipher ioctl: File:%p IOCTL:%d\n",file,ioctl_num);
-	if(check_if_mesg_exists(file)){
-		pr_err("cipher ioctl: Message exists. Please clear the message first");
-		return ERROR;
-	}
+	
 	switch (ioctl_num) {
 		case IOCTL_SET_METHOD:
 			cipher_device.method = ioctl_param;
@@ -262,70 +251,24 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			break;
 		case IOCTL_SET_KEY:
 			pr_info("cipher ioctl: Set Key: %s of lenghth: %d\n",(char *)ioctl_param,strlen((char *)ioctl_param));
-			tempStr=(char *)ioctl_param;
-			convertToUpperCase(tempStr);
-			ret = checkifAlpha(tempStr);
+			strcpy(temp,(char *)ioctl_param);
+			convertToUpperCase(temp);
+			ret = checkifAlpha(temp);
 			if(ret<0){
 				pr_info("cipher ioctl: Key: %s is not Alphabet\n",tempStr);
 				return ret;
 			}
-			ret =  copy_from_user(cipher_device.key,tempStr,strlen(tempStr));
-			//strcpy(cipher_device.key,tempStr);
+			strcpy(cipher_device.key,temp);
 			return SUCCESS;
 			break;
 		case IOCTL_GET_KEY:
-			if(!(*cipher_device.key)){
-				pr_err("cipher ioctl: Get Key failed as no key set\n");
-				return ERROR;
-			}
+
 			strcpy(ioctl_param,cipher_device.key);
-			//ret =  copy_from_user(ioctl_param,cipher_device.key,BUF_LEN);
 			pr_info("cipher ioctl: Get Key: %s of lenghth: %d\n",(char *)ioctl_param,strlen((char *)ioctl_param));
 			return SUCCESS;
 			break;
 		case IOCTL_CLEAR_CIPHER:
-			memset(temp,'\0',BUF_LEN);
-			ret = cipherdev_write(file,temp,BUF_LEN,0);
-			if(ret < 0)
-			{
-				pr_err("cipher ioctl: IOCTL_CLEAR_CIPHER failed\n");
-				return ERROR;
-			}
-			break;
-		case IOCTL_SET_MESG:
-			//strcpy(temp,(char *)ioctl_param);
-			ret =  copy_from_user(temp,(char *)ioctl_param,strlen((char *)ioctl_param));
-			//pr_info("cipher device: Write %s msg",temp);
-			convertToUpperCase(temp);
-			//pr_info("cipher device: Write %s msg",temp);
-			ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
-			pr_info("cipher device: Write %s msg of length: %d/n",temp,strlen(temp));
-			if(ret < 0)
-			{
-				return ERROR;
-			}
-			ret = cipherdev_write(file,temp,strlen(temp),0);
-			if(ret < 0)
-			{
-				pr_err("cipher ioctl: IOCTL_SET_MESG failed\n");
-				return ERROR;
-			}
-			break;
-		case IOCTL_GET_MESG:
-			ret = cipherdev_read(file,temp,BUF_LEN,0);
-			if(ret < 0)
-			{
-				pr_err("cipher ioctl: IOCTL_GET_MESG failed\n");
-				return ERROR;
-			}
-			ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
-			if(ret < 0)
-			{
-				return ERROR;
-			}
-			strcpy((char *)ioctl_param,temp);
-			return ret;
-			break;
+			memset(cipher_device.message, '\0', BUF_LEN);
 		default :
 			pr_err("cipher device: Incorrect IOCTL_NUMBER: %d\n",ioctl_num);
 	}
