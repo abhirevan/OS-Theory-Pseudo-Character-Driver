@@ -7,7 +7,7 @@ PWD       := $(shell pwd)
 
 default: all
 
-all: build cipherctl test ioctl
+all: build cipherctl
 
 build:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules

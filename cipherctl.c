@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>	
 #include <sys/ioctl.h>
+#include <string.h>
 
 #define DEVICE "/dev/cipher"
 //Commands
@@ -17,29 +18,84 @@
 #define CLEAR "clear"
 #define WRITE "write"
 #define READ "read"
-#define WRITE_MSG "write_msg"
-#define READ_MSG "read_msg"
+
+#define ERROR_METHOD_US -20
+#define ERROR_DEV_LOCK -21
+#define ERROR_MODE_US -22
+#define ERROR_CLEAR_US -23
+#define ERROR_KEY_US -24
+#define ERROR_WRITE_US -25
+#define ERROR_READ_US -26
+#define ERROR_CIPHERCTL_US -27
 /***************************************************************************
  *  Helper function
  ***************************************************************************/
+void print_err(int err_num){
+	switch(err_num){
+		case ERROR:
+			printf("ERROR!\n");
+			break;
+		case ERROR_KEY_NOT_SET:
+			printf("Key not set\n");
+			break;
+		case ERROR_METHOD_US:
+			printf("Usage: cipherctl method [vigenere | caesar]\n");
+			break;
+		case ERROR_DEV_LOCK:
+			printf("Either %s does not exist or is locked by another process\n",DEVICE);
+			break;
+		case ERROR_MODE_US:
+			printf("Usage: cipherctl mode [encipher | decipher]\n");
+			break;
+		case ERROR_MSG_IN_BUF:
+			printf("ERROR Message in buffer!\n");
+			break;
+		case ERROR_MSG_NOT_IN_BUF:
+			printf("ERROR Message not in buffer!\n");
+			break;
+		case ERROR_KEY_NOT_ALPHABET:
+			printf("ERROR Key does not contain alphabet!\n");
+			break;
+		case ERROR_CLEAR_US:
+			printf("Usage: cipherctl clear\n");
+			break;
+		case ERROR_KEY_US:
+			printf("Usage: cipherctl key [key]\n");
+			break;
+		case ERROR_WRITE_US:
+			printf("Usage: cipherctl write [message]\n");
+			break;
+		case ERROR_READ_US:
+			printf("Usage: cipherctl read\n");
+			break;
+		case ERROR_CIPHERCTL_US:
+			printf("Invalid usage for cipherctl\n");
+			printf("cipherctl method [vigenere | caesar] - Set cipher method.\n");
+			printf("cipherctl key [key] - Set key.\n");
+			printf("cipherctl mode [encipher | decipher] - Set operation mode.");
+			printf("cipherctl clear - Drop any message pending in the driver.\n");
+			printf("cipherctl write [message] - Encipher/decipher a message.\n");
+			printf("cipherctl read - Read the result of an encipher/decipher operation.\n");
+			break;
+		default: printf("Unknown ERROR!\n");
+	}
+	exit(-1);
+}
 void ioctl_set_method(int fp, int method)
 {
 	int ret_val;
 	ret_val = ioctl(fp, IOCTL_SET_METHOD, method);
 	if (ret_val < 0) {
-		printf("Set Method failed\n");
-		exit(-1);
+		print_err(ERROR_MSG_IN_BUF);
 	}
 	printf("Set Method success\n");
 }
-
 void ioctl_get_method(int fp)
 {
 	int ret_val;
 	ret_val = ioctl(fp, IOCTL_GET_METHOD, 0);
 	if (ret_val < 0) {
-		printf("Get Method failed\n");
-		exit(-1);
+		print_err(ret_val);
 	}
 	switch(ret_val){
 		case VIGENERE:
@@ -55,8 +111,7 @@ void ioctl_set_mode(int file_desc, int mode)
 	int ret_val;
 	ret_val = ioctl(file_desc, IOCTL_SET_MODE, mode);
 	if (ret_val < 0) {
-		printf("Set Mode failed\n");
-		exit(-1);
+		print_err(ERROR_MSG_IN_BUF);
 	}
 	printf("Set Mode success\n");
 }
@@ -66,8 +121,7 @@ void ioctl_get_mode(int fp)
 	int ret_val;
 	ret_val = ioctl(fp, IOCTL_GET_MODE, 0);
 	if (ret_val < 0) {
-		printf("Get Mode failed\n");
-		exit(-1);
+		print_err(ret_val);
 	}
 	switch(ret_val){
 		case ENCIPHER:
@@ -83,8 +137,7 @@ void ioctl_set_key(int fp, const char* key)
 	int ret_val;
 	ret_val = ioctl(fp, IOCTL_SET_KEY, key);
 	if (ret_val < 0) {
-		printf("Set Key failed\n");
-		exit(-1);
+		print_err(ret_val);
 	}
 	printf("Set Key success\n");
 }
@@ -94,51 +147,31 @@ void ioctl_get_key(int fp)
 	int ret_val;
 	ret_val = ioctl(fp, IOCTL_GET_KEY, key);
 	if (ret_val < 0) {
-		printf("Get Key failed\n");
-		exit(-1);
+		print_err(ERROR_KEY_NOT_SET);
 	}
 	printf("Get Key: %s\n",key);
 }
-void ioctl_write_msg(int fp, const char* mesg,int mode){ // Mode = 0 -> device read/write 1->IOCTL read/write
-	int ret_val;
-	switch(mode){
-		case 0:
-			ret_val = write(fp, mesg, strlen(mesg));
-			break;
-		case 1:
-			//ret_val = ioctl(fp, IOCTL_SET_MESG, mesg);
-			break;
-	}
+void ioctl_write_msg(int fp, const char* mesg){
+	int ret_val= write(fp, mesg, strlen(mesg));
 	if (ret_val < 0) {
-		printf("Write failed\n");
-		exit(-1);
+		print_err(ERROR_MSG_IN_BUF);
 	}
 	printf("Write successfull\n");
 }
 
-void ioctl_read_msg(int fp,int mode){ // Mode = 0 -> device read/write 1->IOCTL read/write
+void ioctl_read_msg(int fp){
 	int ret_val;
 	char mesg[BUF_LEN];
-	
-	switch(mode){
-		case 0:
-			ret_val = read(fp, mesg, BUF_LEN);
-			break;
-		case 1:
-			//ret_val = ioctl(fp, IOCTL_GET_MESG, mesg);
-			break;
-	}
+	ret_val = read(fp, mesg, BUF_LEN);
 	if (ret_val < 0) {
-		printf("Read failed\n");
-		exit(-1);
+		print_err(ret_val);
 	}
 	printf("Message: %s\n",mesg);
 }
 void ioctl_clear_msg(int fp){
 	int ret_val = ioctl(fp, IOCTL_CLEAR_CIPHER, 0);
 	if (ret_val < 0) {
-		printf("Clear failed\n");
-		exit(-1);
+		print_err(ret_val);
 	}
 	printf("Clear successfull\n");
 }
@@ -148,17 +181,16 @@ void ioctl_clear_msg(int fp){
 int main(int argc, char **argv) {
 	int fp;
 	fp = open(DEVICE, O_RDWR);
+	if(fp<0){
+		print_err(ERROR_DEV_LOCK);
+	}
 	if (argc < 2) {
-		//TODO: Print usage
-		printf("Invalid usage for %s\n", argv[0]);
-		exit(-1);
+		print_err(ERROR_CIPHERCTL_US);
 	}
 	//Set/Get method
 	if (strcmp(argv[1], METHOD) == 0) {
 		if (argc > 3) {
-			//TODO: Print usage
-			printf("Usage: %s method [vigenere | caesar]\n", argv[0]);
-			exit(-1);
+			print_err(ERROR_METHOD_US);
 		}
 		if (argc == 2) {
 			//print method
@@ -170,17 +202,14 @@ int main(int argc, char **argv) {
 			} else if(strcmp(argv[2], METHOD_CAESAR) == 0){
 				ioctl_set_method(fp,CAESAR);
 			} else {
-				printf("Invalid Method: %s method [vigenere | caesar]\n", argv[0]);
-				exit(-1);
+				print_err(ERROR_METHOD_US);
 			}
 		}
 	}
 	//Set/Get Mode
 	else if (strcmp(argv[1], MODE) == 0) {
 		if (argc > 3) {
-			//TODO: Print usage
-			printf("Usage: %s mode [encipher | decipher]\n", argv[0]);
-			exit(-1);
+			print_err(ERROR_MODE_US);
 		}
 		if (argc == 2) {
 			//print mode
@@ -192,17 +221,14 @@ int main(int argc, char **argv) {
 			} else if(strcmp(argv[2], MODE_DECIPHER) == 0){
 				ioctl_set_mode(fp,DECIPHER);
 			} else {
-				printf("Invalid Mode: %s mode [encipher | decipher]\n", argv[0]);
-				exit(-1);
+				print_err(ERROR_MODE_US);
 			}
 		}
 	}
 	// Set/Get Key
 	else if (strcmp(argv[1], KEY) == 0) {
 		if (argc > 3) {
-			//TODO: Print usage
-			printf("Usage: %s key [key]\n", argv[0]);
-			exit(-1);
+			print_err(ERROR_KEY_US);
 		}
 		if (argc == 2) {
 			//print key
@@ -215,9 +241,7 @@ int main(int argc, char **argv) {
 	//Clear msg
 	else if (strcmp(argv[1], CLEAR) == 0) {
 		if (argc != 2) {
-			//TODO: Print usage
-			printf("Usage: clear\n", argv[0]);
-			exit(-1);
+			print_err(ERROR_CLEAR_US);
 		}else{
 			ioctl_clear_msg(fp);
 		}
@@ -225,44 +249,21 @@ int main(int argc, char **argv) {
 	//Write msg
 	else if (strcmp(argv[1], WRITE) == 0) {
 		if (argc != 3) {
-			//TODO: Print usage
-			printf("Usage: %s write [message]\n", argv[0]);
-			exit(-1);
+			print_err(ERROR_WRITE_US);
 		}else{
-			ioctl_write_msg(fp,argv[2],1);
-		}
-	}
-	else if (strcmp(argv[1], WRITE_MSG) == 0) {
-		if (argc != 3) {
-			//TODO: Print usage
-			printf("Usage: %s write_msg [message]\n", argv[0]);
-			exit(-1);
-		}else{
-			ioctl_write_msg(fp,argv[2],0);
+			ioctl_write_msg(fp,argv[2]);
 		}
 	}
 	//Read msg
 	else if (strcmp(argv[1], READ) == 0) {
 		if (argc != 2) {
-			//TODO: Print usage
-			printf("Usage: %s read\n", argv[0]);
-			exit(-1);
+			print_err(ERROR_READ_US);
 		}else{
-			ioctl_read_msg(fp,1);
+			ioctl_read_msg(fp);
 		}
-
 	}
-	else if (strcmp(argv[1], READ_MSG) == 0) {
-		if (argc != 2) {
-			//TODO: Print usage
-			printf("Usage: %s read_msg\n", argv[0]);
-			exit(-1);
-		}else{
-			ioctl_read_msg(fp,0);
-		}
-	}else{
-		printf("Invalid usage for %s\n", argv[0]);
-		exit(-1);
+	else{
+		print_err(ERROR_CIPHERCTL_US);
 	}
 
 	return 0;

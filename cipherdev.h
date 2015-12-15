@@ -30,6 +30,13 @@
 
 #define BUF_LEN 100
 #define SUCCESS 0
+#define BLOCK 1
+#define UNBLOCK 0
+
 #define ERROR -1
+#define ERROR_KEY_NOT_SET -2
+#define ERROR_MSG_IN_BUF -3
+#define ERROR_MSG_NOT_IN_BUF -4
+#define ERROR_KEY_NOT_ALPHABET -5
 
 #endif

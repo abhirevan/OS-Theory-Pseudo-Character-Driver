@@ -35,6 +35,7 @@ struct cipher_device_t{
 	int method;
 	int mode;
 	char key[BUF_LEN];
+	int flag; // 0 - unblocked 1-blocked
 } cipher_device;
 /***************************************************************************
  * Helper functions
@@ -51,7 +52,7 @@ int checkifAlpha(char *sPtr){
 	while(*sPtr != '\0')
       {
          if(!((*sPtr >= 'A') && (*sPtr <= 'Z'))){
-			 return ERROR;
+			 return ERROR_KEY_NOT_ALPHABET;
 		 }
          sPtr++;
        }
@@ -62,7 +63,7 @@ int vinegere_cipher(char* text){
 	pr_info("cipher device : vinegere_cipher\n");
 	if(!(*(cipher_device.key))){//Key is not present
 		pr_err("cipher device : Key is not set!\n");
-		return ERROR;
+		return ERROR_KEY_NOT_SET;
 	}
 	sign = (cipher_device.mode) ? -1 : 1;
 	for(i = 0, j = 0, length = strlen(text); i < length; i++, j++)
@@ -146,6 +147,7 @@ static int __init cipherdev_init(void)
 	
 	//Init semaphore
 	sema_init(&cipher_device.sem,1);
+	cipher_device.flag = 0;
 	
 	//Init Cipher_device
 	cipher_device.method = VIGENERE;
@@ -212,15 +214,20 @@ static int cipherdev_release(struct inode *inode, struct file *filp)
 
 static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_t* offset){
 	pr_info("cipher: reading from device\n");
+	if(!cipher_device.flag){
+		//Device blocked
+		return ERROR_MSG_NOT_IN_BUF;
+	}
+	cipher_device.flag = UNBLOCK;
 	strcpy(temp,cipher_device.message);
 	pr_info("cipher device: message stored %s msg\n",temp);
 	pr_info("cipher device: Key stored %s msg\n",cipher_device.key);
 	convertToUpperCase(temp);
 	ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
-	pr_info("cipher device: Cipher message:%s of length:%d/n",temp,strlen(temp));
+	pr_info("cipher device: Cipher message:%s of length:%d/n",temp,(int)strlen(temp));
 	if(ret < 0)
 	{
-				return ERROR;
+		return ret;
 	}
 	ret= copy_to_user(buffer,temp,length);
 	return ret;
@@ -228,6 +235,11 @@ static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_
 
 static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
 	pr_info("cipher: writing to device\n");
+	if(cipher_device.flag){
+		//Device blocked
+		return ERROR_MSG_IN_BUF;
+	}
+	cipher_device.flag = BLOCK;
 	ret =  copy_from_user(cipher_device.message,buffer,length);
 	return ret;
 }
@@ -244,6 +256,10 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 	
 	switch (ioctl_num) {
 		case IOCTL_SET_METHOD:
+			if(cipher_device.flag){
+				//Device blocked
+				return ERROR_MSG_IN_BUF;
+			}
 			cipher_device.method = ioctl_param;
 			pr_info("cipher ioctl: Method set as: %d\n",cipher_device.method);
 			break;
@@ -252,6 +268,10 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			return cipher_device.method;
 			break;
 		case IOCTL_SET_MODE:
+			if(cipher_device.flag){
+				//Device blocked
+				return ERROR_MSG_IN_BUF;
+			}
 			cipher_device.mode = ioctl_param;
 			pr_info("cipher ioctl: Mode set as: %d\n",cipher_device.mode);
 			break;
@@ -260,27 +280,36 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			return cipher_device.mode;
 			break;
 		case IOCTL_SET_KEY:
-			pr_info("cipher ioctl: Set Key: %s of lenghth: %d\n",(char *)ioctl_param,strlen((char *)ioctl_param));
-			strcpy(temp,(char *)ioctl_param);
+			if(cipher_device.flag){
+				//Device blocked
+				return ERROR_MSG_IN_BUF;
+			}
+			ret =  copy_from_user(temp,(char *)ioctl_param,BUF_LEN);
 			convertToUpperCase(temp);
 			ret = checkifAlpha(temp);
 			if(ret<0){
-				pr_info("cipher ioctl: Key: %s is not Alphabet\n",tempStr);
-				return ret;
+				pr_err("cipher ioctl: Key: %s is not Alphabet\n",tempStr);
+				return ERROR_KEY_NOT_ALPHABET;
 			}
 			strcpy(cipher_device.key,temp);
 			return SUCCESS;
 			break;
 		case IOCTL_GET_KEY:
-
-			strcpy(ioctl_param,cipher_device.key);
-			pr_info("cipher ioctl: Get Key: %s of lenghth: %d\n",(char *)ioctl_param,strlen((char *)ioctl_param));
-			return SUCCESS;
+			if(!(*(cipher_device.key))){//Key is not present
+				pr_err("cipher device : Key is not set!\n");
+				return ERROR_KEY_NOT_SET;
+			}
+			ret =  copy_to_user(ioctl_param,cipher_device.key,BUF_LEN);
+			pr_info("cipher ioctl: Get Key: %s\n",(char *)ioctl_param);
+			return ret;
 			break;
 		case IOCTL_CLEAR_CIPHER:
+			cipher_device.flag = UNBLOCK;
 			memset(cipher_device.message, '\0', BUF_LEN);
+			return SUCCESS;
 		default :
 			pr_err("cipher device: Incorrect IOCTL_NUMBER: %d\n",ioctl_num);
+			return ERROR;
 	}
 
 	return SUCCESS;
