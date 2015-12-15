@@ -59,6 +59,7 @@ int checkifAlpha(char *sPtr){
 }
 
 int vinegere_cipher(char* text){
+	pr_info("cipher device : vinegere_cipher\n");
 	if(!(*(cipher_device.key))){//Key is not present
 		pr_err("cipher device : Key is not set!\n");
 		return ERROR;
@@ -81,6 +82,7 @@ int vinegere_cipher(char* text){
 }
 
 int caesar_cipher(char* text){
+	pr_info("cipher device : caesar_cipher\n");
 	sign = (cipher_device.mode) ? 1 : -1;
 	for(i = 0, length = strlen(text); i < length; i++)
     {
@@ -216,11 +218,13 @@ static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_
 
 static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
 	pr_info("cipher: writing to device\n");
+	/*
 	if(length > BUF_LEN)
 	{
 		pr_err("cipher device: Cannot write more than %d bytes\n",BUF_LEN);
 		return ERROR;
 	}
+	*/
 	ret =  copy_from_user(cipher_device.message,buffer,length);
 	return ret;
 }
@@ -279,7 +283,7 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			break;
 		case IOCTL_CLEAR_CIPHER:
 			memset(temp,'\0',BUF_LEN);
-			ret = cipherdev_read(file,temp,BUF_LEN,0);
+			ret = cipherdev_write(file,temp,BUF_LEN,0);
 			if(ret < 0)
 			{
 				pr_err("cipher ioctl: IOCTL_CLEAR_CIPHER failed\n");
@@ -288,13 +292,16 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			break;
 		case IOCTL_SET_MESG:
 			strcpy(temp,(char *)ioctl_param);
+			//pr_info("cipher device: Write %s msg",temp);
 			convertToUpperCase(temp);
+			//pr_info("cipher device: Write %s msg",temp);
 			ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
+			pr_info("cipher device: Write %s msg of length: %d/n",temp,strlen(temp));
 			if(ret < 0)
 			{
 				return ERROR;
 			}
-			ret = cipherdev_read(file,temp,strlen(temp),0);
+			ret = write(file,temp,strlen(temp));
 			if(ret < 0)
 			{
 				pr_err("cipher ioctl: IOCTL_SET_MESG failed\n");
@@ -302,7 +309,7 @@ int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl
 			}
 			break;
 		case IOCTL_GET_MESG:
-			ret = cipherdev_write(file,temp,BUF_LEN,0);
+			ret = cipherdev_read(file,temp,BUF_LEN,0);
 			if(ret < 0)
 			{
 				pr_err("cipher ioctl: IOCTL_GET_MESG failed\n");
