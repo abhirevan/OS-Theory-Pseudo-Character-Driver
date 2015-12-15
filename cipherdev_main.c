@@ -212,7 +212,17 @@ static int cipherdev_release(struct inode *inode, struct file *filp)
 
 static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_t* offset){
 	pr_info("cipher: reading from device\n");
-	ret= copy_to_user(buffer,cipher_device.message,length);
+	strcpy(temp,cipher_device.message);
+	pr_info("cipher device: message stored %s msg\n",temp);
+	pr_info("cipher device: Key stored %s msg\n",cipher_device.key);
+	convertToUpperCase(temp);
+	ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
+	pr_info("cipher device: Cipher message:%s of length:%d/n",temp,strlen(temp));
+	if(ret < 0)
+	{
+				return ERROR;
+	}
+	ret= copy_to_user(buffer,temp,length);
 	return ret;
 }
 
