@@ -1,20 +1,13 @@
-/* cipherdev skeleton */
-/* cipherdev_main.c */
-/* by William Katsak <wkatsak@cs.rutgers.edu> */
-/* for CS 519, Fall 2015, Rutgers University */
-
-/* This is not guaranteed to be complete/correct with regards to setting up
-	the character device, just a reasonable starting point */
-
-/* *************************************************************************/
-
-/* This sets up some functions for printing output, and tagging the output */
-/* with the name of the module */
-/* These functions are pr_info(), pr_warn(), pr_err(), etc. and behave */
-/* just like printf(). You can search LXR for information on these functions */
-/* and other pr_ functions. */
+/*
+ * Pseudo-Character Driver implementation file for Cipher Processing
+ * 
+ * Supports callbacks for the following system calls: open(),release(),read(),write(),ioctl()
+ * Supports a Vigenre, as well as a simple Caesar cipher.
+ *
+ * Author:  Abhijit Shanbhag<abhijit.shanbhag@rutgers.edu>
+ * 		    Priyanka Dhingra<pd374@scarletmail.rutgers.edu>
+ */
 #define pr_fmt(fmt) "["KBUILD_MODNAME "]: " fmt
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -24,18 +17,94 @@
 #include <linux/device.h>
 #include <asm/uaccess.h>
 #include "cipherdev.h"
+#include <linux/semaphore.h>
+#include <linux/ctype.h>
+#include <linux/string.h>
 
-static struct class *cipherdev_class = NULL;
+/***************************************************************************
+ * Globals
+ ***************************************************************************/
+ static struct class *cipherdev_class = NULL;
 static struct device *cipherdev_device = NULL;
 static struct cdev cipherdev_cdev;
 static int cipherdev_major;
 static struct file_operations cipherdev_fops;
+int ret;
+char *tempStr;
+int sign = 1;
+int i,j,length;
+char temp[100];
 
-/* Module initization. Happens every time the module is loaded. */
-/* At a minimum, you need to initialize the character device structures. */
+struct cipher_device_t{
+	char message[BUF_LEN];
+	struct semaphore sem;
+	int method;
+	int mode;
+	char key[BUF_LEN];
+	int flag; // 0 - unblocked 1-blocked
+} cipher_device;
+/***************************************************************************
+ * Helper functions
+ ***************************************************************************/
+void convertToUpperCase(char *sPtr)
+{
+     while(*sPtr != '\0')
+     {
+        *sPtr = toupper((unsigned char)*sPtr);
+        sPtr++;
+     }
+}
+int checkifAlpha(char *sPtr){
+	while(*sPtr != '\0')
+      {
+         if(!((*sPtr >= 'A') && (*sPtr <= 'Z'))){
+			 return ERROR_KEY_NOT_ALPHABET;
+		 }
+         sPtr++;
+       }
+       return SUCCESS;
+}
+
+int vinegere_cipher(char* text){
+	pr_info("cipher device : vinegere_cipher\n");
+	if(!(*(cipher_device.key))){//Key is not present
+		pr_err("cipher device : Key is not set!\n");
+		return ERROR_KEY_NOT_SET;
+	}
+	sign = (cipher_device.mode) ? -1 : 1;
+	for(i = 0, j = 0, length = strlen(text); i < length; i++, j++)
+    {
+		if (j >= strlen(cipher_device.key))
+        {
+            j = 0;
+        }
+        if (!isalpha(text[i]))
+        {
+            j = (j - 1);
+        } else{
+			text[i] = 'A' + (26 + (text[i] - 'A') + sign * (cipher_device.key[j] - 'A'))%26;
+		}
+	}
+	return SUCCESS;
+}
+
+int caesar_cipher(char* text){
+	pr_info("cipher device : caesar_cipher\n");
+	sign = (cipher_device.mode) ? 1 : -1;
+	for(i = 0, length = strlen(text); i < length; i++)
+    {
+        if (isalpha(text[i]))
+        {
+			text[i] = 'A' + (26 + (text[i] - 'A') + sign * 3)%26;
+		}
+	}
+	return SUCCESS;
+}
+/***************************************************************************
+ * Module functions
+ ***************************************************************************/
 static int __init cipherdev_init(void)
 {
-	int err = 0;
 	dev_t dev = 0;
 
 	pr_info("module loaded\n");
@@ -47,37 +116,49 @@ static int __init cipherdev_init(void)
 	cipherdev_class = class_create(THIS_MODULE, "cipherdev");
 	if (IS_ERR(cipherdev_class)) {
 		pr_err("error in class_create(), cannot load module.\n");
-		err = PTR_ERR(cipherdev_class);
+		ret = PTR_ERR(cipherdev_class);
 		goto err_class_create;
 	}
 
 	// Allocate a single minor for the device
-	err = alloc_chrdev_region(&dev, 0, 1, "cipherdev");
-	if (err) {
+	ret = alloc_chrdev_region(&dev, 0, 1, DEVICE_NAME);
+	if (ret) {
 		pr_err("error in alloc_chrdev_region(), cannot load module.\n");
 		goto err_alloc_chrdev_region;
 	}
 	// Extract the major number
 	cipherdev_major = MAJOR(dev);
-
+	pr_info("cipher Major number is %d\n",cipherdev_major);
+	pr_info("Use: mknod /dev/%s c %d 0\n",DEVICE_NAME,cipherdev_major);
+	
 	// Set up and add the cdev
 	cdev_init(&cipherdev_cdev, &cipherdev_fops);
 	cipherdev_cdev.owner = THIS_MODULE;
-	err = cdev_add(&cipherdev_cdev, MKDEV(cipherdev_major, 0), 1);
-	if (err) {
+	ret = cdev_add(&cipherdev_cdev, MKDEV(cipherdev_major, 0), 1);
+	if (ret) {
 		pr_err("error in cdev_add(), cannot load module.\n");
 		goto err_cdev_add;
 	}
-
 	// Create a device structure
 	// This is what lets the system automatically create the /dev entry.
 	cipherdev_device = device_create(cipherdev_class, NULL, dev, NULL, "cipher");
 	if (IS_ERR(cipherdev_device)) {
 		pr_err("error in device_create(), cannot load module.\n");
-		err = PTR_ERR(cipherdev_device);
+		ret = PTR_ERR(cipherdev_device);
 		goto err_device_create;
 	}
-
+	//Init message and key
+	memset(cipher_device.message, '\0', BUF_LEN);
+	memset(cipher_device.key, '\0', BUF_LEN);
+	
+	//Init semaphore
+	sema_init(&cipher_device.sem,1);
+	cipher_device.flag = 0;
+	
+	//Init Cipher_device
+	cipher_device.method = VIGENERE;
+	cipher_device.mode = ENCIPHER;
+	
 	// If no errors have occured, return 0.
 	return 0;
 
@@ -100,9 +181,6 @@ err_class_create:
 	return 0;
 }
 
-/* Module initization. Happens every time the module is loaded. */
-/* You need to clean up the character device structures as well as */
-/* ANYTHING else that you set up in init(). */
 static void __exit cipherdev_exit(void)
 {
 	dev_t dev = MKDEV(cipherdev_major, 0);
@@ -120,14 +198,141 @@ static void __exit cipherdev_exit(void)
 		class_destroy(cipherdev_class);
 }
 
-/* File operations: put the pointers to your operation handlers here. */
+static int cipherdev_open(struct inode *inode, struct file *filp){
+	pr_info("cipherdev_open(%p,%p)\n", inode, filp);
+	//allow only 1 process
+	if(down_interruptible(&cipher_device.sem) !=0){
+		pr_err("cipher: could not lock device during open\n");
+		return ERROR;
+	}
+	pr_info("cipher: opened device\n");
+	return SUCCESS;
+}
+
+static int cipherdev_release(struct inode *inode, struct file *filp)
+{
+	pr_info("cipherdev_release(%p,%p)\n", inode, filp);
+	//Release the process
+	up(&cipher_device.sem);
+	pr_info("cipher: released device\n");
+	return SUCCESS;
+}
+
+static ssize_t cipherdev_read(struct file* filp,char* buffer,size_t length,loff_t* offset){
+	pr_info("cipher: reading from device\n");
+	if(!cipher_device.flag){
+		//Device blocked
+		return ERROR_MSG_NOT_IN_BUF;
+	}
+	cipher_device.flag = UNBLOCK;
+	strcpy(temp,cipher_device.message);
+	pr_info("cipher device: message stored %s msg\n",temp);
+	pr_info("cipher device: Key stored %s msg\n",cipher_device.key);
+	convertToUpperCase(temp);
+	ret = (cipher_device.method == VIGENERE) ? vinegere_cipher(temp): caesar_cipher(temp);
+	pr_info("cipher device: Cipher message:%s of length:%d/n",temp,(int)strlen(temp));
+	if(ret < 0)
+	{
+		return ret;
+	}
+	ret= copy_to_user(buffer,temp,length);
+	return ret;
+}
+
+static ssize_t cipherdev_write(struct file *filp,const char* buffer, size_t length, loff_t * offset){
+	pr_info("cipher: writing to device\n");
+	if(cipher_device.flag){
+		//Device blocked
+		return ERROR_MSG_IN_BUF;
+	}
+	cipher_device.flag = BLOCK;
+	ret =  copy_from_user(cipher_device.message,buffer,length);
+	return ret;
+}
+
+int check_if_mesg_exists(struct file *file){
+	if(*(cipher_device.message)){
+		return 1;
+	}
+	return 0;
+}
+
+int cipherdev_ioctl(struct file *file,unsigned int ioctl_num,unsigned long ioctl_param){
+	pr_info("cipher ioctl: File:%p IOCTL:%d\n",file,ioctl_num);
+	
+	switch (ioctl_num) {
+		case IOCTL_SET_METHOD:
+			if(cipher_device.flag){
+				//Device blocked
+				return ERROR_MSG_IN_BUF;
+			}
+			cipher_device.method = ioctl_param;
+			pr_info("cipher ioctl: Method set as: %d\n",cipher_device.method);
+			break;
+		case IOCTL_GET_METHOD:
+			pr_info("cipher ioctl: Method get as: %d\n",cipher_device.method);
+			return cipher_device.method;
+			break;
+		case IOCTL_SET_MODE:
+			if(cipher_device.flag){
+				//Device blocked
+				return ERROR_MSG_IN_BUF;
+			}
+			cipher_device.mode = ioctl_param;
+			pr_info("cipher ioctl: Mode set as: %d\n",cipher_device.mode);
+			break;
+		case IOCTL_GET_MODE:
+			pr_info("cipher ioctl: Mode get as: %d\n",cipher_device.mode);
+			return cipher_device.mode;
+			break;
+		case IOCTL_SET_KEY:
+			if(cipher_device.flag){
+				//Device blocked
+				return ERROR_MSG_IN_BUF;
+			}
+			ret =  copy_from_user(temp,(char *)ioctl_param,BUF_LEN);
+			convertToUpperCase(temp);
+			ret = checkifAlpha(temp);
+			if(ret<0){
+				pr_err("cipher ioctl: Key: %s is not Alphabet\n",tempStr);
+				return ERROR_KEY_NOT_ALPHABET;
+			}
+			strcpy(cipher_device.key,temp);
+			return SUCCESS;
+			break;
+		case IOCTL_GET_KEY:
+			if(!(*(cipher_device.key))){//Key is not present
+				pr_err("cipher device : Key is not set!\n");
+				return ERROR_KEY_NOT_SET;
+			}
+			ret =  copy_to_user(ioctl_param,cipher_device.key,BUF_LEN);
+			pr_info("cipher ioctl: Get Key: %s\n",(char *)ioctl_param);
+			return ret;
+			break;
+		case IOCTL_CLEAR_CIPHER:
+			cipher_device.flag = UNBLOCK;
+			memset(cipher_device.message, '\0', BUF_LEN);
+			return SUCCESS;
+		default :
+			pr_err("cipher device: Incorrect IOCTL_NUMBER: %d\n",ioctl_num);
+			return ERROR;
+	}
+
+	return SUCCESS;
+}
+
 static struct file_operations cipherdev_fops = {
 	.owner = THIS_MODULE,
+	.open = cipherdev_open,
+	.release = cipherdev_release,
+	.write = cipherdev_write,
+	.unlocked_ioctl = cipherdev_ioctl,
+	.read = cipherdev_read
 };
 
 module_init(cipherdev_init);
 module_exit(cipherdev_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("William Katsak <wkatsak@cs.rutgers.edu>");
-MODULE_DESCRIPTION("CS519-Fall-2015 - cipherdev skeleton");
+MODULE_AUTHOR("Abhijit Shanbhag <abhijit.shanbhag@rutgers.edu>");
+MODULE_DESCRIPTION("Pseudo-Character Driver for Cipher Processing");
