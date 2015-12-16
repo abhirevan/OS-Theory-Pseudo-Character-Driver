@@ -201,7 +201,7 @@ static void __exit cipherdev_exit(void)
 static int cipherdev_open(struct inode *inode, struct file *filp){
 	pr_info("cipherdev_open(%p,%p)\n", inode, filp);
 	//allow only 1 process
-	if(down_interruptible(&cipher_device.sem) !=0){
+	if(down_trylock(&cipher_device.sem) !=0){
 		pr_err("cipher: could not lock device during open\n");
 		return ERROR;
 	}
