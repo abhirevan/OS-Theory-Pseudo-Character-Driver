@@ -20,11 +20,12 @@
 #include <linux/semaphore.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
-
+#include <linux/sched.h>
+#include <linux/cred.h>
 /***************************************************************************
  * Globals
  ***************************************************************************/
- static struct class *cipherdev_class = NULL;
+static struct class *cipherdev_class = NULL;
 static struct device *cipherdev_device = NULL;
 static struct cdev cipherdev_cdev;
 static int cipherdev_major;
@@ -34,10 +35,12 @@ char *tempStr;
 int sign = 1;
 int i,j,length;
 char temp[100];
+struct semaphore lock;
 
 struct cipher_device_t{
 	char message[BUF_LEN];
-	struct semaphore sem;
+	int open_count;
+	int open_uid;
 	int method;
 	int mode;
 	char key[BUF_LEN];
@@ -152,7 +155,11 @@ static int __init cipherdev_init(void)
 	memset(cipher_device.key, '\0', BUF_LEN);
 	
 	//Init semaphore
-	sema_init(&cipher_device.sem,1);
+	//sema_init(&cipher_device.sem,1);
+	//getuid_call = sys_call_table[__NR_getuid];
+	sema_init(&lock,1);
+	cipher_device.open_count = 0;
+	cipher_device.open_uid = 0;
 	cipher_device.flag = 0;
 	
 	//Init Cipher_device
@@ -200,20 +207,40 @@ static void __exit cipherdev_exit(void)
 
 static int cipherdev_open(struct inode *inode, struct file *filp){
 	pr_info("cipherdev_open(%p,%p)\n", inode, filp);
-	//allow only 1 process
-	if(down_trylock(&cipher_device.sem) !=0){
-		pr_err("cipher: could not lock device during open\n");
-		return ERROR;
+	//allow only 1 user
+	ret = SUCCESS;
+	down_interruptible(&lock);
+	if(cipher_device.open_count == 0){
+		cipher_device.open_uid =  current_uid().val;
+		//Allow open
+		cipher_device.open_count++;
+	} else if(cipher_device.open_count > 0){
+		if(cipher_device.open_uid ==  current_uid().val){
+			//Allow open
+			cipher_device.open_count++;
+		}else{
+			ret = ERROR;
+		}
+	}else {
+		ret = ERROR;
 	}
+	up(&lock);
 	pr_info("cipher: opened device\n");
-	return SUCCESS;
+	return ret;
 }
 
 static int cipherdev_release(struct inode *inode, struct file *filp)
 {
 	pr_info("cipherdev_release(%p,%p)\n", inode, filp);
 	//Release the process
-	up(&cipher_device.sem);
+	//up(&cipher_device.sem);
+	down_interruptible(&lock);
+	cipher_device.open_count--;
+	if(cipher_device.open_count == 0){
+		//Reset the user
+		cipher_device.open_uid = 0;
+	}
+	up(&lock);
 	pr_info("cipher: released device\n");
 	return SUCCESS;
 }
